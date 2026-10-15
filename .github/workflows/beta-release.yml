@@ -1,0 +1,44 @@
+name: Build and publish beta
+on:
+  push:
+    branches: [main]
+    paths:
+      - ImmuneAtlas_Source_1.0.0_Beta3.zip
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.9'
+      - name: Unpack project source
+        shell: pwsh
+        run: Expand-Archive -LiteralPath 'ImmuneAtlas_Source_1.0.0_Beta3.zip' -DestinationPath "$env:RUNNER_TEMP\immune-atlas-source"
+      - name: Install packaging tools
+        shell: pwsh
+        run: |
+          choco install innosetup --no-progress -y
+          python -m pip install --upgrade pip
+          python -m pip install -r "$env:RUNNER_TEMP\immune-atlas-source\desktop\requirements.txt"
+      - name: Build Windows installer and update package
+        shell: pwsh
+        run: |
+          Set-Location "$env:RUNNER_TEMP\immune-atlas-source"
+          python desktop/build.py
+      - name: Publish beta release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: immune-atlas-v1.0.0-beta.3
+          target_commitish: main
+          name: Immune Atlas 1.0.0 Beta 3
+          body_path: ${{ runner.temp }}/immune-atlas-source/CHANGELOG.md
+          prerelease: true
+          fail_on_unmatched_files: true
+          files: |
+            ${{ runner.temp }}/immune-atlas-source/release/ImmuneAtlas_Setup_1.0.0_Beta3.exe
+            ${{ runner.temp }}/immune-atlas-source/release/ImmuneAtlas_Update_1.0.0_Beta3.zip
+            ${{ runner.temp }}/immune-atlas-source/release/SHA256SUMS.txt
